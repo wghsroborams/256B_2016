@@ -46,7 +46,7 @@ if(abs(vexRT[Ch4]) > threshold)
 X1 = vexRT[Ch4];
 else
 X1 = 0;
-S
+
 //X1 = pow(deadzone(vexRT[Ch4])/128, 3) * 128;
 
 //Create "deadzone" for X2/Ch1
