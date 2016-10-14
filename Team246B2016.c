@@ -10,43 +10,38 @@ int round(float x) {
    return (f>0)?(int)(f+0.5):(int)(f - 0.5);
 }
 
-int deadzone(int input) {
-	return abs(input) > deadzonesize ? ((input - deadzonesize)) : 0; // * 1/(1/deadzonesize)
+float deadzone(int input) {
+  if (abs(input)<deadzonesize) {
+    return 0;
+  }
+
+  float out = input - deadzonesize; // Adjust so that the values come out of the deadzone at 0
+  out = out * 128/(128-deadzonesize); // Rescale so that the max value can still be reached
+
+
+  return out;
+	//return abs(input) > deadzonesize ? ((input - deadzonesize)) : 0; // * 1/(1/deadzonesize)
+}
+
+int improveInput(int input) {
+  return round(pow(deadzone(input)/128, 3) * 128);
 }
 
 task main()
 {
-//Create "deadzone" variables. Adjust threshold value to increase/decrease deadzone
-int X2 = 0, Y1 = 0, X1 = 0;//, threshold = 15;
+    int X2 = 0, Y1 = 0, X1 = 0;
 
-//Loop Forever
-while(1 == 1)
-{
-//Create "deadzone" for Y1/Ch3
-//if(abs(vexRT[Ch3]) > threshold)
-//Y1 = vexRT[Ch3];
-//else
-//Y1 = 0;
-Y1 = round(pow(deadzone(vexRT[Ch3])/128, 3) * 128);
-//Create "deadzone" for X1/Ch4
-//if(abs(vexRT[Ch4]) > threshold)
-//X1 = vexRT[Ch4];
-//else
-//X1 = 0;
+    //Loop Forever
+    while(1 == 1)
+    {
+        Y1 = improveInput(vexRT[Ch3]);
+        X1 = improveInput(vexRT[Ch4]);
+        X2 = improveInput(vexRT[Ch1]);
 
-X1 = round(pow(deadzone(vexRT[Ch4])/128, 3) * 128);
-
-//Create "deadzone" for X2/Ch1
-//if(abs(vexRT[Ch1]) > threshold)
-//X2 = vexRT[Ch1];
-//else
-//X2 = 0;
-X2 = round(pow(deadzone(vexRT[Ch1])/128, 3) * 128);
-
-//Remote Control Commands
-motor[frontRight] = Y1 - X2 - X1;
-motor[backRight] =  Y1 - X2 + X1;
-motor[frontLeft] = Y1 + X2 + X1;
-motor[backLeft] =  Y1 + X2 - X1;
-}
+        // map inputs to mecanum wheels
+        motor[frontRight] = Y1 - X2 - X1;
+        motor[backRight] =  Y1 - X2 + X1;
+        motor[frontLeft] = Y1 + X2 + X1;
+        motor[backLeft] =  Y1 + X2 - X1;
+    }
 }
