@@ -21,12 +21,6 @@ Motor Port 4        frontLeft           VEX Motor             Front Left motor
 Motor Port 5        backLeft            VEX Motor             Back Left motor
 --------------------------------------------------------------------------------------------------*/
 
-/*
-  Code for VEX team 256B
-
-  Written By Aaron Janse
-  */
-
 //int deadzonesize = 15;
 
 //int deadzone(int input) {
