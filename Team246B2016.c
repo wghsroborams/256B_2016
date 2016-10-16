@@ -65,3 +65,105 @@ task usercontrol()
     motor[backLeft] =  Y1 + X2 - X1;
   }
 }
+
+#define PID_DRIVE_MAX       127
+#define PID_DRIVE_MIN     (-127)
+
+#define PID_INTEGRAL_LIMIT  50
+
+#define TICKS_PER_REV 392
+
+#define TICKS_TO_MEASURE 5
+
+int maxrmp = 200; // Max expected rmp output
+
+float  pid_Kp = 2.0;
+float  pid_Ki = 0.04;
+float  pid_Kd = 0.0;
+
+static int   pidRunning = 1;
+static float pidRequestedValue; // speed desired
+
+/**** PID Control *****/
+
+// Heavily based on code by jpearman
+task pidController(tmotor motor)
+{
+  float  pidSensorCurrentValue;
+
+  float  pidError;
+  float  pidLastError;
+  float  pidIntegral;
+  float  pidDerivative;
+  float  pidDriveChange;
+
+  // Reset Encoder
+  //resetMotorEncoded(motor);
+
+  // Init the variables
+  pidLastError  = 0;
+  pidIntegral   = 0;
+
+  while(true)
+  {
+    // Is PID control active?
+    if(pidRunning)
+    {
+      // Calculate the speed
+      resetMotorEncoded(motor);
+      clearTimer(T1);
+      while(getMotorEncoded(motor) <= TICKS_TO_MEASURE) {
+        delay(5); // Wait, and allow time for other tasks to run
+      }
+
+      //int time = time1[T1]
+
+      pidSensorCurrentValue = time1[T1] * TICKS_TO_MEASURE / TICKS_PER_REV; // Calc speed
+
+      //pidSensorCurrentValue = SensorValue[ PID_SENSOR_INDEX ] * PID_SENSOR_SCALE;
+
+      // calculate error
+      pidError = pidSensorCurrentValue - pidRequestedValue;
+
+      // integral - if Ki is not 0
+      if( pid_Ki != 0 )
+      {
+        // If we are inside controlable window then integrate the error
+        if( abs(pidError) < PID_INTEGRAL_LIMIT )
+        pidIntegral = pidIntegral + pidError;
+        else
+        pidIntegral = 0;
+      }
+      else
+      pidIntegral = 0;
+
+      // calculate the derivative
+      pidDerivative = pidError - pidLastError;
+      pidLastError  = pidError;
+
+      // calculate drive
+      pidDriveChange = (pid_Kp * pidError) + (pid_Ki * pidIntegral) + (pid_Kd * pidDerivative);
+
+      // limit drive
+      if( pidDrive > PID_DRIVE_MAX )
+      pidDrive = PID_DRIVE_MAX;
+      if( pidDrive < PID_DRIVE_MIN )
+      pidDrive = PID_DRIVE_MIN;
+
+      // send accel to motor
+      motor[ PID_MOTOR_INDEX ] += pidDriveChange;
+    }
+    else
+    {
+      // clear all
+      pidError      = 0;
+      pidLastError  = 0;
+      pidIntegral   = 0;
+      pidDerivative = 0;
+      //motor[ motor ] = 0;
+    }
+
+    // Run at 50Hz. Enable this only if there ar no problems with responsive-ness
+    // wait1Msec( 25 );
+  }
+}
