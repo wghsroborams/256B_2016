@@ -18,7 +18,7 @@ int deadzonesize = 15;
 /***** Utility *****/
 
 int round(float x) {
-   return (f>0)?(int)(f+0.5):(int)(f - 0.5);
+  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
 }
 
 float deadzone(int input) {
@@ -31,7 +31,7 @@ float deadzone(int input) {
 
 
   return out;
-	//return abs(input) > deadzonesize ? ((input - deadzonesize)) : 0; // * 1/(1/deadzonesize)
+  //return abs(input) > deadzonesize ? ((input - deadzonesize)) : 0; // * 1/(1/deadzonesize)
 }
 
 int improveInput(int input) {
@@ -53,16 +53,21 @@ task autonomous()
 task usercontrol()
 {
   int X2 = 0, Y1 = 0, X1 = 0;
+
+  StartTask( pidController );
+
   while(true) {
     Y1 = improveInput(vexRT[Ch3]);
     X1 = improveInput(vexRT[Ch4]);
     X2 = improveInput(vexRT[Ch1]);
 
     // map inputs to mecanum wheels
-    motor[frontRight] = Y1 - X2 - X1;
-    motor[backRight] =  Y1 - X2 + X1;
-    motor[frontLeft] = Y1 + X2 + X1;
-    motor[backLeft] =  Y1 + X2 - X1;
+    setSpeed(0, Y1 - X2 - X1);
+    setSpeed(1, Y1 - X2 + X1);
+    setSpeed(2, Y1 + X2 + X1);
+    setSpeed(3, Y1 + X2 - X1);
+
+    delay(5); // Wait 5 ms
   }
 }
 
@@ -82,27 +87,34 @@ float  pid_Ki = 0.04;
 float  pid_Kd = 0.0;
 
 static int   pidRunning = 1;
-static float pidRequestedValue; // speed desired
+static float pidRequestedValue[4] = {0, 0, 0, 0}; // speed desired in ticks/ms
+
+static bool pendingUpdate = false;
 
 /**** PID Control *****/
 
-// Heavily based on code by jpearman
-task pidController(tmotor motor)
-{
-  float  pidSensorCurrentValue;
+void setSpeed(int idx, float speed) { // input -127 to +127
+  pidRequestedValue[idx] = speed/127 * (maxrpm*TICKS_TO_MEASURE/(60*1000));
+  pendingUpdate = true;
+}
 
-  float  pidError;
-  float  pidLastError;
-  float  pidIntegral;
-  float  pidDerivative;
-  float  pidDriveChange;
+// Heavily based on code by jpearman
+task pidController()
+{
+  float  pidSensorCurrentValue[4] = {0, 0, 0, 0};
+
+  float  pidError[4] = {0, 0, 0, 0};
+  float  pidLastError[4] = {0, 0, 0, 0};
+  float  pidIntegral[4] = {0, 0, 0, 0};
+  float  pidDerivative[4] = {0, 0, 0, 0};
+  float  pidDriveChange[4] = {0, 0, 0, 0};
 
   // Reset Encoder
   //resetMotorEncoded(motor);
 
   // Init the variables
-  pidLastError  = 0;
-  pidIntegral   = 0;
+  // pidLastError  = 0;
+  // pidIntegral   = 0;
 
   while(true)
   {
@@ -110,60 +122,157 @@ task pidController(tmotor motor)
     if(pidRunning)
     {
       // Calculate the speed
-      resetMotorEncoded(motor);
+      int done=0;
+      bool list[4] = {false, false, false, false};
+      resetMotorEncoded(frontLeft);
+      resetMotorEncoded(frontRight);
+      resetMotorEncoded(backLeft);
+      resetMotorEncoded(backRight);
       clearTimer(T1);
-      while(getMotorEncoded(motor) <= TICKS_TO_MEASURE) {
-        delay(5); // Wait, and allow time for other tasks to run
+      clearTimer(T2);
+      clearTimer(T3);
+      clearTimer(T4);
+      while(done<4) {
+        if(getMotorEncoded(frontLeft)>TICKS_TO_MEASURE && list[0]==false) {
+          list[0]=true;
+          done++;
+          pidSensorCurrentValue[0] = time1[T1] / TICKS_TO_MEASURE;
+        }
+
+        if(getMotorEncoded(frontRight)>TICKS_TO_MEASURE && list[1]==false) {
+          list[1]=true;
+          done++;
+          pidSensorCurrentValue[1] = time1[T2] / TICKS_TO_MEASURE;
+        }
+
+        if(getMotorEncoded(backLeft)>TICKS_TO_MEASURE && list[2]==false) {
+          list[2]=true;
+          done++;
+          pidSensorCurrentValue[2] = time1[T3] / TICKS_TO_MEASURE;
+        }
+
+        if(getMotorEncoded(backRight)>TICKS_TO_MEASURE && list[3]==false) {
+          list[3]=true;
+          done++;
+          pidSensorCurrentValue[3] = time1[T4] / TICKS_TO_MEASURE;
+        }
+
+        delay(5); // Wait 5 ms
       }
+
+
+      //
+      // while(getMotorEncoded(frontLeft) <= TICKS_TO_MEASURE) {
+      //   delay(5); // Wait, and allow time for other tasks to run
+      // }
+      //
+      // pidSensorCurrentValue[0] = time1[T1] / TICKS_TO_MEASURE;
+      //
+      // resetMotorEncoded(frontRight);
+      // clearTimer(T1);
+      // while(getMotorEncoded(frontRight) <= TICKS_TO_MEASURE) {
+      //   delay(5); // Wait, and allow time for other tasks to run
+      // }
+      //
+      // pidSensorCurrentValue[1] = time1[T1] / TICKS_TO_MEASURE;
+      //
+      // resetMotorEncoded(backLeft);
+      // clearTimer(T1);
+      // while(getMotorEncoded(backLeft) <= TICKS_TO_MEASURE) {
+      //   delay(5); // Wait, and allow time for other tasks to run
+      // }
+      //
+      // pidSensorCurrentValue[2] = time1[T1] / TICKS_TO_MEASURE;
+      //
+      // resetMotorEncoded(backRight);
+      // clearTimer(T1);
+      // while(getMotorEncoded(backRight) <= TICKS_TO_MEASURE) {
+      //   delay(5); // Wait, and allow time for other tasks to run
+      // }
+      //
+      // pidSensorCurrentValue[3] = time1[T1] / TICKS_TO_MEASURE;
 
       //int time = time1[T1]
 
-      pidSensorCurrentValue = time1[T1] * TICKS_TO_MEASURE / TICKS_PER_REV; // Calc speed
+      // Speed in ticks/ms
 
       //pidSensorCurrentValue = SensorValue[ PID_SENSOR_INDEX ] * PID_SENSOR_SCALE;
 
       // calculate error
-      pidError = pidSensorCurrentValue - pidRequestedValue;
+      for(int i = 0; i < 4; i++) {
+        pidError[i] = pidSensorCurrentValue[i] - pidRequestedValue[i];
 
-      // integral - if Ki is not 0
-      if( pid_Ki != 0 )
-      {
-        // If we are inside controlable window then integrate the error
-        if( abs(pidError) < PID_INTEGRAL_LIMIT )
-        pidIntegral = pidIntegral + pidError;
+
+
+        // integral - if Ki is not 0
+        if( pid_Ki != 0 )
+        {
+          // If we are inside controlable window then integrate the error
+          if( abs(pidError[i]) < PID_INTEGRAL_LIMIT )
+          pidIntegral[i] = pidIntegral[i] + pidError[i];
+          else
+          pidIntegral[i] = 0;
+        }
         else
-        pidIntegral = 0;
+        pidIntegral[i] = 0;
+
+        // calculate the derivative
+        pidDerivative[i] = pidError[i] - pidLastError[i];
+        pidLastError[i]  = pidError[i];
+
+        // calculate drive
+        pidDriveChange[i] = (pid_Kp * pidError[i]) + (pid_Ki * pidIntegral[i]) + (pid_Kd * pidDerivative[i]);
+
+        // limit drive
+        //if( pidDriveChange > PID_DRIVE_MAX )
+        //pidDriveChange = PID_DRIVE_MAX;
+        //if( pidDriveChange < PID_DRIVE_MIN )
+        //pidDriveChange = PID_DRIVE_MIN;
+
       }
-      else
-      pidIntegral = 0;
-
-      // calculate the derivative
-      pidDerivative = pidError - pidLastError;
-      pidLastError  = pidError;
-
-      // calculate drive
-      pidDriveChange = (pid_Kp * pidError) + (pid_Ki * pidIntegral) + (pid_Kd * pidDerivative);
-
-      // limit drive
-      if( pidDrive > PID_DRIVE_MAX )
-      pidDrive = PID_DRIVE_MAX;
-      if( pidDrive < PID_DRIVE_MIN )
-      pidDrive = PID_DRIVE_MIN;
 
       // send accel to motor
-      motor[ PID_MOTOR_INDEX ] += pidDriveChange;
+
+      motor[frontLeft]  = limit(motor[frontLeft]+pidDriveChange[0]);
+      motor[frontRight] = limit(motor[frontLeft]+pidDriveChange[1]);
+      motor[backLeft]   = limit(motor[frontLeft]+pidDriveChange[2]);
+      motor[backRight]  = limit(motor[frontLeft]+pidDriveChange[3]);
     }
     else
     {
       // clear all
-      pidError      = 0;
-      pidLastError  = 0;
-      pidIntegral   = 0;
-      pidDerivative = 0;
+      for(int i = 0; i < 4; i++) {
+        pidError[i]      = 0;
+        pidLastError[i]  = 0;
+        pidIntegral[i]   = 0;
+        pidDerivative[i] = 0;
+      }
       //motor[ motor ] = 0;
     }
 
-    // Run at 50Hz. Enable this only if there ar no problems with responsive-ness
+    if(pendingUpdate) {
+      motor[frontLeft] = limit(127*pidRequestedValue[0]/((maxrpm*TICKS_PER_REV)/(60*1000)));
+      motor[frontRight] = limit(127*pidRequestedValue[1]/((maxrpm*TICKS_PER_REV)/(60*1000)));
+      motor[backLeft] = limit(127*pidRequestedValue[2]/((maxrpm*TICKS_PER_REV)/(60*1000)));
+      motor[backRight] = limit(127*pidRequestedValue[3]/((maxrpm*TICKS_PER_REV)/(60*1000)));
+
+      pendingUpdate = false;
+    }
+
+
+    // Run at 50Hz. Enable this only if there are no problems with responsive-ness
     // wait1Msec( 25 );
   }
+}
+
+int limit(float val) {
+  if (val>127) {
+    val = 127;
+  }
+
+  if(val < -127) {
+    val = -127;
+  }
+
+  return (int) (val);
 }
