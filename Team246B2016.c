@@ -6,7 +6,7 @@
 
 int deadzonesize = 15;
 
-int round(float x) {
+int round(float f) {
    return (f>0)?(int)(f+0.5):(int)(f - 0.5);
 }
 
