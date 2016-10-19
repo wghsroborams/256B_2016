@@ -54,7 +54,7 @@ task usercontrol()
 {
   int X2 = 0, Y1 = 0, X1 = 0;
 
-  StartTask( pidController );
+  StartTask( pidController, 20); // High priority
 
   while(true) {
     Y1 = improveInput(vexRT[Ch3]);
@@ -67,7 +67,8 @@ task usercontrol()
     setSpeed(2, Y1 + X2 + X1);
     setSpeed(3, Y1 + X2 - X1);
 
-    delay(5); // Wait 5 ms
+    endTimeSlice();
+    //wait1Msec(50); // Wait 5 ms
   }
 }
 
@@ -80,7 +81,7 @@ task usercontrol()
 
 #define TICKS_TO_MEASURE 5
 
-int maxrmp = 200; // Max expected rmp output
+int maxrmp = 90; // Max expected rmp output
 
 float  pid_Kp = 2.0;
 float  pid_Ki = 0.04;
@@ -133,6 +134,7 @@ task pidController()
       clearTimer(T3);
       clearTimer(T4);
       while(done<4) {
+        if (pendingUpdate) goto updateVals;
         if(getMotorEncoded(frontLeft)>TICKS_TO_MEASURE && list[0]==false) {
           list[0]=true;
           done++;
@@ -157,7 +159,7 @@ task pidController()
           pidSensorCurrentValue[3] = time1[T4] / TICKS_TO_MEASURE;
         }
 
-        delay(5); // Wait 5 ms
+        wait1Msec(2); // Wait 2 ms
       }
 
 
@@ -249,7 +251,7 @@ task pidController()
       }
       //motor[ motor ] = 0;
     }
-
+    updateVals:
     if(pendingUpdate) {
       motor[frontLeft] = limit(127*pidRequestedValue[0]/((maxrpm*TICKS_PER_REV)/(60*1000)));
       motor[frontRight] = limit(127*pidRequestedValue[1]/((maxrpm*TICKS_PER_REV)/(60*1000)));
@@ -262,6 +264,7 @@ task pidController()
 
     // Run at 50Hz. Enable this only if there are no problems with responsive-ness
     // wait1Msec( 25 );
+    endTimeSlice();
   }
 }
 
