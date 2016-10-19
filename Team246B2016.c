@@ -9,17 +9,57 @@
 #pragma autonomousDuration(15) // 15 sec
 #pragma userControlDuration(105) // 1 min 45 sec
 
-#include “Vex_Competition_Includes.c”
+#include "Vex_Competition_Includes.c"?�
 
 /***** Settings *****/
 
 int deadzonesize = 15;
 
+#define PID_DRIVE_MAX       127
+#define PID_DRIVE_MIN     (-127)
+
+#define PID_INTEGRAL_LIMIT  50
+
+#define TICKS_PER_REV 392
+
+#define TICKS_TO_MEASURE 5
+
+int maxrpm= 90;
+// Max expected rmp output
+
+
+float  pid_Kp = 2.0;
+float  pid_Ki = 0.04;
+float  pid_Kd = 0.0;
+
+static int   pidRunning = 1;
+static float pidRequestedValue[4] = {0, 0, 0, 0}; // speed desired in ticks/ms
+
+static bool pendingUpdate = false;
+
 /***** Utility *****/
 
-int round(float x) {
-  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
+int limit(float val) {
+  if (val>127) {
+    val = 127;
+  }
+
+  if(val < -127) {
+    val = -127;
+  }
+
+  return (int) (val);
 }
+
+
+void setSpeed(int idx, float speed) { // input -127 to +127
+  pidRequestedValue[idx] = speed/127 * (90*TICKS_TO_MEASURE/(60*1000));
+  pendingUpdate = true;
+}
+
+//int round(float x) {
+//  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
+//}
 
 float deadzone(int input) {
   if (abs(input)<deadzonesize) {
@@ -40,7 +80,7 @@ int improveInput(int input) {
 
 /***** Main Control *****/
 
-void pre_autonomous()
+void pre_auton()
 {
   //Place pre-autonomous code here
 }
@@ -50,54 +90,11 @@ task autonomous()
   //Place autonomous code here
 }
 
-task usercontrol()
-{
-  int X2 = 0, Y1 = 0, X1 = 0;
 
-  StartTask( pidController, 20); // High priority
 
-  while(true) {
-    Y1 = improveInput(vexRT[Ch3]);
-    X1 = improveInput(vexRT[Ch4]);
-    X2 = improveInput(vexRT[Ch1]);
 
-    // map inputs to mecanum wheels
-    setSpeed(0, Y1 - X2 - X1);
-    setSpeed(1, Y1 - X2 + X1);
-    setSpeed(2, Y1 + X2 + X1);
-    setSpeed(3, Y1 + X2 - X1);
-
-    endTimeSlice();
-    //wait1Msec(50); // Wait 5 ms
-  }
-}
-
-#define PID_DRIVE_MAX       127
-#define PID_DRIVE_MIN     (-127)
-
-#define PID_INTEGRAL_LIMIT  50
-
-#define TICKS_PER_REV 392
-
-#define TICKS_TO_MEASURE 5
-
-int maxrmp = 90; // Max expected rmp output
-
-float  pid_Kp = 2.0;
-float  pid_Ki = 0.04;
-float  pid_Kd = 0.0;
-
-static int   pidRunning = 1;
-static float pidRequestedValue[4] = {0, 0, 0, 0}; // speed desired in ticks/ms
-
-static bool pendingUpdate = false;
 
 /**** PID Control *****/
-
-void setSpeed(int idx, float speed) { // input -127 to +127
-  pidRequestedValue[idx] = speed/127 * (maxrpm*TICKS_TO_MEASURE/(60*1000));
-  pendingUpdate = true;
-}
 
 // Heavily based on code by jpearman
 task pidController()
@@ -125,35 +122,35 @@ task pidController()
       // Calculate the speed
       int done=0;
       bool list[4] = {false, false, false, false};
-      resetMotorEncoded(frontLeft);
-      resetMotorEncoded(frontRight);
-      resetMotorEncoded(backLeft);
-      resetMotorEncoded(backRight);
+      resetMotorEncoder(frontLeft);
+      resetMotorEncoder(frontRight);
+      resetMotorEncoder(backLeft);
+      resetMotorEncoder(backRight);
       clearTimer(T1);
       clearTimer(T2);
       clearTimer(T3);
       clearTimer(T4);
       while(done<4) {
         if (pendingUpdate) goto updateVals;
-        if(getMotorEncoded(frontLeft)>TICKS_TO_MEASURE && list[0]==false) {
+        if(getMotorEncoder(frontLeft)>TICKS_TO_MEASURE && list[0]==false) {
           list[0]=true;
           done++;
           pidSensorCurrentValue[0] = time1[T1] / TICKS_TO_MEASURE;
         }
 
-        if(getMotorEncoded(frontRight)>TICKS_TO_MEASURE && list[1]==false) {
+        if(getMotorEncoder(frontRight)>TICKS_TO_MEASURE && list[1]==false) {
           list[1]=true;
           done++;
           pidSensorCurrentValue[1] = time1[T2] / TICKS_TO_MEASURE;
         }
 
-        if(getMotorEncoded(backLeft)>TICKS_TO_MEASURE && list[2]==false) {
+        if(getMotorEncoder(backLeft)>TICKS_TO_MEASURE && list[2]==false) {
           list[2]=true;
           done++;
           pidSensorCurrentValue[2] = time1[T3] / TICKS_TO_MEASURE;
         }
 
-        if(getMotorEncoded(backRight)>TICKS_TO_MEASURE && list[3]==false) {
+        if(getMotorEncoder(backRight)>TICKS_TO_MEASURE && list[3]==false) {
           list[3]=true;
           done++;
           pidSensorCurrentValue[3] = time1[T4] / TICKS_TO_MEASURE;
@@ -268,14 +265,24 @@ task pidController()
   }
 }
 
-int limit(float val) {
-  if (val>127) {
-    val = 127;
-  }
+task usercontrol()
+{
+  int X2 = 0, Y1 = 0, X1 = 0;
 
-  if(val < -127) {
-    val = -127;
-  }
+  startTask( pidController, 20); // High priority
 
-  return (int) (val);
+  while(true) {
+    Y1 = improveInput(vexRT[Ch3]);
+    X1 = improveInput(vexRT[Ch4]);
+    X2 = improveInput(vexRT[Ch1]);
+
+    // map inputs to mecanum wheels
+    setSpeed(0, Y1 - X2 - X1);
+    setSpeed(1, Y1 - X2 + X1);
+    setSpeed(2, Y1 + X2 + X1);
+    setSpeed(3, Y1 + X2 - X1);
+
+    endTimeSlice();
+    //wait1Msec(50); // Wait 5 ms
+  }
 }
