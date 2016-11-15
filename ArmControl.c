@@ -29,10 +29,18 @@ int valb=0;
 int valm=0;
 int valw=0;
 
+float speedb = 0.3;
+float speedm = 0.5;
+float speedw = 1.0;
+
 /***** Utility *****/
 
 void moveTo(tMotor mot, int target) {
 	setMotorTarget(mot, target, 127, true);
+}
+
+void moveToSpeed(tMotor mot, int target, int speed) {
+	setMotorTarget(mot, target, speed, true);
 }
 
 void moveToWait(tMotor mot, int target) {
@@ -40,29 +48,25 @@ void moveToWait(tMotor mot, int target) {
 
 	// Wait for motor to move
 	while(!getMotorTargetCompleted(mot)) {
-	   wait1Msec(5);
-	 }
+		wait1Msec(5);
+	}
 }
 
-//int round(float f) {
-//   return (f>0)?(int)(f+0.5):(int)(f - 0.5);
-//}
-
 float deadzone(int input) {
-  if (abs(input)<deadzonesize) {
-    return 0;
-  }
+	if (abs(input)<deadzonesize) {
+		return 0;
+	}
 
-  float out = input - deadzonesize; // Adjust so that the values come out of the deadzone at 0
-  out = out * 128/(128-deadzonesize); // Rescale so that the max value can still be reached
+	float out = input - deadzonesize; // Adjust so that the values come out of the deadzone at 0
+	out = out * 128/(128-deadzonesize); // Rescale so that the max value can still be reached
 
 
-  return out;
+	return out;
 	//return abs(input) > deadzonesize ? ((input - deadzonesize)) : 0; // * 1/(1/deadzonesize)
 }
 
 int improveInput(int input) {
-  return round(pow(deadzone(input)/128, 3) * 128);
+	return round(pow(deadzone(input)/128, 3) * 128);
 }
 
 //A 91, -105, -471
@@ -71,188 +75,131 @@ int improveInput(int input) {
 //D -745, -303, -427
 
 void toD() {
-	moveTo(baseleft, -745);
-	moveTo(midleft, -303);
-	moveTo(wrist, -427);
+	moveToSpeed(baseleft, -745, round(127*speedb));
+	moveToSpeed(midleft, -303, round(127*speedm));
+	moveToSpeed(wrist, -427, round(127*speedw));
 }
 
 void toC() {
-	moveTo(baseleft, -1084);
-	moveTo(midleft, -301);
-	moveTo(wrist, -518);
+	moveToSpeed(baseleft, -1084, round(127*speedb));
+	moveToSpeed(midleft, -301, round(127*speedm));
+	moveToSpeed(wrist, -518, round(127*speedw));
 }
 
 void toB() {
-	moveTo(baseleft, -181);
-	moveTo(midleft, -153);
-	moveTo(wrist, -72);
+	// code to keep arm from getting caught
+	moveToSpeed(midleft, -300, round(127*speedm));
+
+	// normal code
+	moveToSpeed(baseleft, -181, round(127*speedb));
+	moveToSpeed(wrist, -72, round(127*speedw));
+
+	// by now, the arm should be ready to move the middle section
+	wait1Msec(1000);
+	moveToSpeed(midleft, -153, round(127*speedm));
 }
 
 void toA() {
-	moveTo(baseleft, 91);
-	moveTo(midleft, -105);
-	moveTo(wrist, -471);
+	moveToSpeed(baseleft, 91, round(127*speedb));
+	moveToSpeed(midleft, -105, round(127*speedm));
+	moveToSpeed(wrist, -471, round(127*speedw));
 }
 
 /*********** Main Control ***************/
 
 void pre_auton()
 {
-  //Place pre-autonomous code here
+	//Place pre-autonomous code here
 
 	slaveMotor(baseright, baseleft);
 	slaveMotor(midright, midleft);
 
-  resetMotorEncoder(baseleft);
-  resetMotorEncoder(midleft);
-  resetMotorEncoder(wrist);
+	resetMotorEncoder(baseleft);
+	resetMotorEncoder(midleft);
+	resetMotorEncoder(wrist);
 }
 
 task autonomous()
 {
-  //Place autonomous code here
+	//Place autonomous code here
 
 
 
 }
 
-bool started = false;
+/*
+Controls:
+7U Btn: open arm
+8 Btns: change arm presets (btn pos is related to resulting robot pos)
+joysticks: control movement of body (wheels)
+*/
 
 task usercontrol()
 {
-
+	// configure slave motorss
 	slaveMotor(baseright, baseleft);
 	slaveMotor(midright, midleft);
 
-  resetMotorEncoder(baseleft);
-  resetMotorEncoder(midleft);
-  resetMotorEncoder(wrist);
+	// reset all encoders
+	resetMotorEncoder(baseleft);
+	resetMotorEncoder(midleft);
+	resetMotorEncoder(wrist);
 
-  while(true) {
-  if(vexRT[Btn7U]&&!started) {
-  	started=true;
-  moveToWait(baseleft, -20);
-  moveToWait(midleft, 37);
-  moveToWait(baseleft, -341);
-  moveToWait(midleft, 50);
-  moveToWait(baseleft, -800);
-  motor[claw]=127;
-	 wait1Msec(120);
-	 motor[claw]=0;
-
-	moveToWait(wrist, -440);
-}
-}
-
-	//moveToWait(midleft, -100);
-
-  while(true) {
-  //	motor[baseright]=-motor[baseleft]
-  if(vexRT[Btn8L]) {
-  	toA();
-}
-if(vexRT[Btn8D]) {
-  	toB();
-}
-if(vexRT[Btn8R]) {
-  	toC();
-}
-if(vexRT[Btn8U]) {
-  	toD();
-}
-
-  valb=getMotorEncoder(baseleft);
-  valm=getMotorEncoder(midleft);
-  valw=getMotorEncoder(wrist);
-}
-
-return;
-
-if(true) {
-setMotorTarget(baseleft, -20, 127, true);
-
-	// Wait for motor to move
-	while(!getMotorTargetCompleted(baseleft)) {
-	    wait1Msec(10);
-	 }
-//val=9999;
-setMotorTarget(midleft, 37, 127, true);
-	//val=1111;
-	// Wait for motor to move
-	//while(!getMotorTargetCompleted(midleft)) {
-	  //  wait1Msec(10);
-	 //}
-	 //val=-10000;
-	 setMotorTarget(baseleft, -341, 127, true);
-
-	// Wait for motor to move
-	//while(!getMotorTargetCompleted(baseleft)) {
-	   //wait1Msec(10);
-	 //}
-
-	 setMotorTarget(midleft, 50, 127, true);
-
-	// Wait for motor to move
-	//while(!getMotorTargetCompleted(midleft)) {
-	 //   wait1Msec(10);
-	// }
-	// while(true) {
-
-//}
-	 setMotorTarget(baseleft, -800, 127, true);
-
-	// Wait for motor to move
-	//while(!getMotorTargetCompleted(baseleft)) {
-	 //   wait1Msec(10);
-	 //}
-	return;
-	wait1Msec(1000*2);
-	 motor[claw]=127;
-	 wait1Msec(120);
-	 motor[claw]=0;
-
-	//val=-123;
-
-	 setMotorTarget(wrist, -440, 127, true);
-
-	 setMotorTarget(midleft, 50, 127, true);
-
-	// Wait for motor to move
-	//while(!getMotorTargetCompleted(wrist)) {
-	  //  wait1Msec(10);
-	 //}
-
-	// setMotorTarget(midleft, -143, 127, true);
-
-	// Wait for motor to move
-	//while(!getMotorTargetCompleted(midleft)) {
-	  //  wait1Msec(10);
-	 //}
-}
-
-
-
-
-
+	// Wait for command to unfold
 	while(true) {
-	//	val = getMotorEncoder(wrist);
-		//datalogAddValue(1, val );
+		if(vexRT[Btn7U]) {
+			// Get arm unstuck and ready to be pulled out of position
+			moveToWait(baseleft, -20);
+			moveToWait(midleft, 37);
+			moveToWait(baseleft, -341);
+			moveToWait(midleft, 50);
+
+			// pull arm out of position
+			moveToWait(baseleft, -800);
+
+			// open claw
+			motor[claw]=127;
+			wait1Msec(120);
+			motor[claw]=0;
+
+			// rotate wrist into position
+			moveToWait(wrist, -440);
+
+			// move on to the rest of the code
+			break;
+		}
 	}
 
+	// for the rest of the program, listen to preset and driving commands
+	int X2 = 0, Y1 = 0, X1 = 0;
+	while(true) {
+		if(vexRT[Btn8L]) {
+			toA();
+		}
+		if(vexRT[Btn8D]) {
+			toB();
+		}
+		if(vexRT[Btn8R]) {
+			toC();
+		}
+		if(vexRT[Btn8U]) {
+			toD();
+		}
 
+		// clean up joystick readings
+		Y1 = improveInput(vexRT[Ch3]);
+		X1 = improveInput(vexRT[Ch4]);
+		X2 = improveInput(vexRT[Ch1]);
 
-	return;
+		// map inputs to mecanum wheels
+		motor[frontright] = Y1 - X2 - X1;
+		motor[backright] =  Y1 - X2 + X1;
+		motor[frontleft] = Y1 + X2 + X1;
+		motor[backleft] =  Y1 + X2 - X1;
 
-  int X2 = 0, Y1 = 0, X1 = 0;
-  while(true) {
-    Y1 = improveInput(vexRT[Ch3]);
-    X1 = improveInput(vexRT[Ch4]);
-    X2 = improveInput(vexRT[Ch1]);
-
-    // map inputs to mecanum wheels
-    motor[frontright] = Y1 - X2 - X1;
-    motor[backright] =  Y1 - X2 + X1;
-    motor[frontleft] = Y1 + X2 + X1;
-    motor[backleft] =  Y1 + X2 - X1;
-  }
+		// debug code to read encoder values
+		valb=getMotorEncoder(baseleft);
+		valm=getMotorEncoder(midleft);
+		valw=getMotorEncoder(wrist);
+	}
 }
