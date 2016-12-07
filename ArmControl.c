@@ -31,9 +31,9 @@ int valw=0;
 
 float speedb = 0.3;
 float speedm = 1.0;
-float speedw = 0.7;
+float speedw = 1.0;
 
-bool measureMode = true;
+bool measureMode = false;
 
 /***** Utility *****/
 
@@ -90,15 +90,15 @@ void toC() {
 
 void toB() {
 
-	moveToSpeed(baseleft, -1680, round(127*speedb));
-	moveToSpeed(midleft, -324, round(127*speedm));
-	moveToSpeed(wrist, -1372, round(127*speedw));
+	moveToSpeed(baseleft, -1719, round(127*speedb));
+	moveToSpeed(midleft, -290, round(127*speedm));
+	moveToSpeed(wrist, -1539, round(127*speedw));
 }
 
 void toA() {
-	moveToSpeed(baseleft, 20, round(127*speedb));
-	moveToSpeed(midleft, -323, round(127*speedm));
-	moveToSpeed(wrist, -2422, round(127*speedw));
+	moveToSpeed(baseleft, 46, round(127*speedb));
+	moveToSpeed(midleft, -351, round(127*speedm));
+	moveToSpeed(wrist, -2512, round(127*speedw));
 }
 
 void moveArmTo(int a, int b, int c) {
