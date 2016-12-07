@@ -33,7 +33,7 @@ float speedb = 0.3;
 float speedm = 1.0;
 float speedw = 0.7;
 
-bool measureMode = false;
+bool measureMode = true;
 
 /***** Utility *****/
 
