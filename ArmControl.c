@@ -233,5 +233,9 @@ task usercontrol()
 		motor[backright] =  Y1 - X2 + X1;
 		motor[frontleft] = Y1 + X2 + X1;
 		motor[backleft] =  Y1 + X2 - X1;
+
+		if(vexRT[Btn5U]&&vexRT[Btn5D]&&vexRT[Btn6U]&&vexRT[Btn6D]) {
+			stopAllTasks();
+		}
 	}
 }
